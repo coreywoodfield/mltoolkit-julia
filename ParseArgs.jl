@@ -14,6 +14,11 @@ struct Static <: EvalMode
 	filename::AbstractString
 end
 
+Base.show(io::IO, ::Training) = print(io, "training")
+Base.show(io::IO, ::Random) = print(io, "random")
+Base.show(io::IO, ::Cross) = print(io, "cross")
+Base.show(io::IO, ::Static) = print(io, "static")
+
 function EvalMode(args::Array)
 	mode = shift!(args)
 	if mode == "training"

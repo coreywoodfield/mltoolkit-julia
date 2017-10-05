@@ -26,6 +26,7 @@ struct Matrix <: AbstractMatrix{Float64}
 	attr_name::Vector{AbstractString}
 	str_to_enum::Vector{Dict{AbstractString,Integer}}
 	enum_to_str::Vector{Dict{Integer,AbstractString}}
+	datasetname::AbstractString
 end
 
 # These functions allow the Matrix to act like a standard julia collection
@@ -34,7 +35,7 @@ end
 Base.start(m::Matrix) = start(m.data)
 Base.next(m::Matrix, state) = next(m.data, state)
 Base.done(m::Matrix, state) = done(m.data, state)
-Base.eltype(::Type{Matrix}) = Vector{Float64}
+# Base.eltype(::Type{Matrix}) = Vector{Float64}
 Base.length(m::Matrix) = length(m.data)
 Base.size(m::Matrix) = (rows(m), columns(m))
 Base.getindex(m::Matrix, i::Int) = m.data[i]
@@ -76,6 +77,32 @@ function shuffle!(m::Matrix, rng::AbstractRNG, buddy::Matrix)
 	permute!(buddy, perm)
 end
 
+"""
+    copymatrix(m, rowstart, colstart, rowcount, colcount)
+
+Copies the specified portion of Matrix `m` and returns it as a new matrix.
+`rowstart` and `colstart` should be 1-indexed values
+
+!!! warning
+
+    This differs from the java/c++ version, where `rowstart` and `colstart` are
+    0-indexed. Here, if you want to copy the whole matrix `m`, you would call
+    `copymatrix(m, 1, 1, rows(m), columns(m))`, not `copymatrix(m, 0, 0, rows(m), columns(m))`
+    as you would call in java/c++
+"""
+function copymatrix(m::Matrix, rowstart::Integer, colstart::Integer, rowcount::Integer, colcount::Integer)::Matrix
+	data = Vector{Vector{Float64}}(rowcount)
+	# Julia ranges include both end values, so if they just want one column we should do colstart:colstart
+	columns = colstart:(colstart + colcount - 1)
+	for i in 0:rowcount-1
+		data[i+1] = m[rowstart+i][columns]
+	end
+	attr_name = m.attr_name[columns]
+	str_to_enum = m.str_to_enum[columns]
+	enum_to_str = m.enum_to_str[columns]
+	Matrix(data, attr_name, str_to_enum, enum_to_str, m.datasetname)
+end
+
 function loadarff(filename::AbstractString)::Matrix
 	io = open(filename)
 	# skip empty lines and comments at the beginning
@@ -84,6 +111,7 @@ function loadarff(filename::AbstractString)::Matrix
 	attr_name = Vector{AbstractString}()
 	str_to_enum = Vector{Dict{AbstractString,Integer}}()
 	enum_to_str = Vector{Dict{Integer,AbstractString}}()
+	datasetname = ""
 	# read attributes - break when you get to the data
 	while true
 		line = readline(io)
@@ -126,7 +154,7 @@ function loadarff(filename::AbstractString)::Matrix
 		push!(data, row)
 	end
 	close(io)
-	Matrix(data, attr_name, str_to_enum, enum_to_str)
+	Matrix(data, attr_name, str_to_enum, enum_to_str, datasetname)
 end
 
 function getfloatvalue(value::AbstractString, dict::Dict{AbstractString,Integer})::Float64
@@ -139,5 +167,55 @@ function getfloatvalue(value::AbstractString, dict::Dict{AbstractString,Integer}
 		dict[value]
 	else
 		error("Error parsing value: $value with dict: $dict")
+	end
+end
+
+function normalize(m::Matrix)
+	# get a list of mins and maxes for each column
+	extr = extrema(m, 1)
+	cols = columns(m)
+	values = map(c -> valuecount(m, c), 1:cols)
+	for row in m
+		for (i, (value, count, (min, max))) in enumerate(zip(row, values, extr))
+			if count == 0 && value != MISSING
+				row[i] = (value - min) / (max - min)
+			end
+		end
+	end
+	# for (int i = 0; i < cols(); i++) {
+	# 	if (valueCount(i) == 0) {
+	# 		min = columnMin(i);
+	# 		max = columnMax(i);
+	# 		for (int j = 0; j < rows(); j++) {
+	# 			double v = get(j, i);
+	# 			if (v != MISSING)
+	# 				set(j, i, (v - min) / (max - min))
+	# 			end
+	# 		}
+	# 	}
+	# }
+end
+
+import Base.show
+
+function show(io::IO, m::Matrix)
+	println(io, "@RELATION ", m.datasetname)
+	for (name, values) in zip(m.attr_name, m.enum_to_str)
+		println(io, "@ATTRIBUTE ", name, " ", begin
+			valcount = length(values)
+			if valcount == 0
+				"CONTINUOUS"
+			else
+				"{", join(map(i -> values[i], 0:valcount-1), ", "), "}"
+			end
+		end...)
+	end
+	println(io, "@DATA")
+	for row in m.data
+		mapped = map(row, m.enum_to_str) do val, map
+			length(map) == 0 ? val : map[val]
+		end
+		join(io, mapped, ", ")
+		println()
 	end
 end
