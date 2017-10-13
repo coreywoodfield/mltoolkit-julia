@@ -15,5 +15,5 @@ function train(learner::BaselineLearner, features::Matrix, labels::Matrix)
 end
 
 function predict(learner::BaselineLearner, features::Vector{Float64})
-	return label
+	learner.label
 end
