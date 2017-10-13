@@ -144,8 +144,8 @@ function trainandtest(learner::SupervisedLearner, data::Matrix, evalmode::Cross,
 		for i in 0:folds-1
 			begin_i = i * div(rows(data), folds) + 1
 			end_i = (i + 1) * div(rows(data), folds) + 1
-			trainfeatures = copymatrix(data, 1, 1, begin_i, columns(data) - 1)
-			trainlabels = copymatrix(data, 1, columns(data) - 1, begin_i, 1)
+			trainfeatures = copymatrix(data, 1, 1, begin_i - 1, columns(data) - 1)
+			trainlabels = copymatrix(data, 1, columns(data) - 1, begin_i - 1, 1)
 			testfeatures = copymatrix(data, begin_i, 1, end_i - begin_i, columns(data) - 1)
 			testlabels = copymatrix(data, begin_i, columns(data) - 1, end_i - begin_i, 1)
 			add!(trainfeatures, data, end_i, 1, rows(data) - end_i)
