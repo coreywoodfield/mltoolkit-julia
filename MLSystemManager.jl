@@ -62,9 +62,8 @@ end
 function trainandtest(learner::SupervisedLearner, data::Matrix, ::Training, verbose::Bool)
 	println("Calculating accuracy on training set...")
 	features = copymatrix(data, 1, 1, rows(data), columns(data) - 1)
-	labels = copymatrix(data, 1, columns(data) - 1, rows(data), 1)
-	labelvalues = valuecount(labels, 1)
-	confusion = Nullable(Matrix(labelvalues, labelvalues))
+	labels = copymatrix(data, 1, columns(data), rows(data), 1)
+	confusion = initconfusionmatrix(labels)
 	elapsedtime = @elapsed train(learner, features, labels)
 	println("Time to train (in seconds): ", elapsedtime)
 	accuracy = measureaccuracy(learner, features, labels, confusion)
@@ -82,15 +81,14 @@ function trainandtest(learner::SupervisedLearner, data::Matrix, evalmode::Static
 	println("Test set name: ", evalmode.filename)
 	println("Number of test instances: ", rows(testdata))
 	features = copymatrix(data, 1, 1, rows(data), columns(data) - 1)
-	labels = copymatrix(data, 1, columns(data) - 1, rows(data), 1)
+	labels = copymatrix(data, 1, columns(data), rows(data), 1)
 	elapsedtime = @elapsed train(learner, features, labels)
 	println("Time to train (in seconds): ", elapsedtime)
 	trainaccuracy = measureaccuracy(features, labels, null)
 	println("Training set accuracy: ", trainaccuracy)
 	testfeatures = copymatrix(testdata, 1, 1, rows(testdata), columns(testdata) - 1)
-	testlabels = copymatrix(testdata, 1, columns(testdata) - 1, rows(testdata), 1)
-	labelvalues = valuecount(labels, 1)
-	confusion = Nullable(Matrix(labelvalues, labelvalues))
+	testlabels = copymatrix(testdata, 1, columns(testdata), rows(testdata), 1)
+	confusion = initconfusionmatrix(labels)
 	testaccuracy = measureaccuracy(learner, testfeatures, testlabels, confusion)
 	println("Test set accuracy: ", testaccuracy)
 	if verbose
@@ -111,15 +109,14 @@ function trainandtest(learner::SupervisedLearner, data::Matrix, evalmode::Random
 	shuffle!(data)
 	trainsize = trunc(Int, trainPercent * rows(data))
 	trainfeatures = copymatrix(data, 1, 1, trainsize, columns(data) - 1)
-	trainlabels = copymatrix(data, 1, columns(data) - 1, trainsize, 1)
+	trainlabels = copymatrix(data, 1, columns(data), trainsize, 1)
 	testfeatures = copymatrix(data, trainSize + 1, 1, rows(data) - trainsize, columns(data) - 1)
-	testlabels = copymatrix(data, trainSize + 1, columns(data) - 1, rows(data) - trainsize, 1)
+	testlabels = copymatrix(data, trainSize + 1, columns(data), rows(data) - trainsize, 1)
 	elapsedtime = @elapsed train(learner, trainfeatures, trainlabels)
 	println("Time to train (in seconds): ", elapsedtime)
 	trainaccuracy = measureaccuracy(learner, trainfeatures, trainlabels)
 	println("Training set accuracy: ", trainaccuracy)
-	labelvalues = valuecount(labels, 1)
-	confusion = Nullable(Matrix(labelvalues, labelvalues))
+	confusion = initconfusionmatrix(testlabels)
 	testaccuracy = measureaccuracy(learner, testfeatures, testlabels, confusion)
 	println("Test set accuracy: ", testaccuracy)
 	if verbose
@@ -145,11 +142,11 @@ function trainandtest(learner::SupervisedLearner, data::Matrix, evalmode::Cross,
 			begin_i = i * div(rows(data), folds) + 1
 			end_i = (i + 1) * div(rows(data), folds) + 1
 			trainfeatures = copymatrix(data, 1, 1, begin_i - 1, columns(data) - 1)
-			trainlabels = copymatrix(data, 1, columns(data) - 1, begin_i - 1, 1)
+			trainlabels = copymatrix(data, 1, columns(data), begin_i - 1, 1)
 			testfeatures = copymatrix(data, begin_i, 1, end_i - begin_i, columns(data) - 1)
-			testlabels = copymatrix(data, begin_i, columns(data) - 1, end_i - begin_i, 1)
+			testlabels = copymatrix(data, begin_i, columns(data), end_i - begin_i, 1)
 			add!(trainfeatures, data, end_i, 1, rows(data) - end_i)
-			add!(trainlabels, data, end_i, columns(data) - 1, rows(data) - end_i)
+			add!(trainlabels, data, end_i, columns(data), rows(data) - end_i)
 			elapsedtime += @elapsed train(learner, trainfeatures, trainlabels)
 			accuracy = measureaccuracy(learner, testfeatures, testlabels)
 			sumaccuracy += accuracy
@@ -158,6 +155,15 @@ function trainandtest(learner::SupervisedLearner, data::Matrix, evalmode::Cross,
 	end
 	println("Average time to train (in seconds): ", elapsedtime / (reps * folds))
 	println("Mean accuracy=", sumaccuracy / (reps * folds))
+end
+
+function initconfusionmatrix(labelmatrix::Matrix)
+	dims = valuecount(labelmatrix, 1)
+	confusion = Matrix(dims, dims)
+	for i in 1:dims
+		setattributename(confusion, i, attributevalue(labelmatrix, 1, i-1))
+	end
+	Nullable(confusion)
 end
 
 end # module

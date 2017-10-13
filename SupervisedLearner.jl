@@ -28,7 +28,7 @@ function measureaccuracy(learner::SupervisedLearner, features::Matrix, labels::M
 			end
 			prediction = Int(predict(learner, feature))
 			if !isnull(confusion)
-				confusion[target, pred] += 1
+				get(confusion)[Int(target[1]) + 1, prediction + 1] += 1
 			end
 			if prediction == target[1]
 				correctcount += 1
