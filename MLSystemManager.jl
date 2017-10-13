@@ -91,8 +91,8 @@ function trainandtest(learner::SupervisedLearner, data::Matrix, evalmode::Static
 	testlabels = copymatrix(testdata, 1, columns(testdata) - 1, rows(testdata), 1)
 	labelvalues = valuecount(labels, 1)
 	confusion = Nullable(Matrix(labelvalues, labelvalues))
-	testAccuracy = measureaccuracy(learner, testfeatures, testlabels, confusion)
-	println("Test set accuracy: ", testAccuracy)
+	testaccuracy = measureaccuracy(learner, testfeatures, testlabels, confusion)
+	println("Test set accuracy: ", testaccuracy)
 	if verbose
 		println("\nConfusion matrix: (Row=target value, Col=predicted value)")
 		show(get(confusion))
@@ -111,13 +111,13 @@ function trainandtest(learner::SupervisedLearner, data::Matrix, evalmode::Random
 	shuffle!(data)
 	trainsize = trunc(Int, trainPercent * rows(data))
 	trainfeatures = copymatrix(data, 1, 1, trainsize, columns(data) - 1)
-	trainlabels = copymatrix(data, 1, columns(data) - 1, trainSize, 1)
-	testfeatures = copymatrix(data, trainSize + 1, 1, rows(data) - trainSize, columns(data) - 1)
-	testlabels = copymatrix(data, trainSize + 1, columns(data) - 1, rows(data) - trainSize, 1)
+	trainlabels = copymatrix(data, 1, columns(data) - 1, trainsize, 1)
+	testfeatures = copymatrix(data, trainSize + 1, 1, rows(data) - trainsize, columns(data) - 1)
+	testlabels = copymatrix(data, trainSize + 1, columns(data) - 1, rows(data) - trainsize, 1)
 	elapsedtime = @elapsed train(learner, trainfeatures, trainlabels)
 	println("Time to train (in seconds): ", elapsedtime)
 	trainaccuracy = measureaccuracy(learner, trainfeatures, trainlabels)
-	println("Training set accuracy: ", trainAccuracy)
+	println("Training set accuracy: ", trainaccuracy)
 	labelvalues = valuecount(labels, 1)
 	confusion = Nullable(Matrix(labelvalues, labelvalues))
 	testaccuracy = measureaccuracy(learner, testfeatures, testlabels, confusion)
@@ -141,23 +141,23 @@ function trainandtest(learner::SupervisedLearner, data::Matrix, evalmode::Cross,
 	elapsedtime = 0.0
 	for j in 1:reps
 		shuffle!(data)
-		for i in 1:folds
-			begin_i = i * rows(data) / folds
-			end_i = (i + 1) * rows(data) / folds
-			trainFeatures = copymatrix(data, 1, 1, begin_i, columns(data) - 1)
-			trainLabels = copymatrix(data, 1, columns(data) - 1, begin_1, 1)
-			testFeatures = copymatrix(data, begin_i, 1, end_i - begin_i, columns(data) - 1)
-			testLabels = copymatrix(data, begin_i, columns(data) - 1, end_i - begin_i, 1)
-			trainFeatures.add(data, end_i, 0, rows(data) - end_i)
-			trainLabels.add(data, end_i, columns(data) - 1, data.rows() - end_i)
-			elapsedtime += @elapsed learner.train(trainFeatures, trainLabels)
-			accuracy = measureAccuracy(learner, testFeatures, testLabels)
-			sumAccuracy += accuracy
+		for i in 0:folds-1
+			begin_i = i * div(rows(data), folds) + 1
+			end_i = (i + 1) * div(rows(data), folds) + 1
+			trainfeatures = copymatrix(data, 1, 1, begin_i, columns(data) - 1)
+			trainlabels = copymatrix(data, 1, columns(data) - 1, begin_i, 1)
+			testfeatures = copymatrix(data, begin_i, 1, end_i - begin_i, columns(data) - 1)
+			testlabels = copymatrix(data, begin_i, columns(data) - 1, end_i - begin_i, 1)
+			add!(trainfeatures, data, end_i, 1, rows(data) - end_i)
+			add!(trainlabels, data, end_i, columns(data) - 1, rows(data) - end_i)
+			elapsedtime += @elapsed train(learner, trainfeatures, trainlabels)
+			accuracy = measureaccuracy(learner, testfeatures, testlabels)
+			sumaccuracy += accuracy
 			println("Rep=", j, ", Fold=", i, ", Accuracy=", accuracy)
 		end
 	end
-	println("Average time to train (in seconds): ", elapsedime / (reps * folds))
-	println("Mean accuracy=", sumAccuracy / (reps * folds))
+	println("Average time to train (in seconds): ", elapsedtime / (reps * folds))
+	println("Mean accuracy=", sumaccuracy / (reps * folds))
 end
 
 end # module
