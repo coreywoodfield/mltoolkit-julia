@@ -10,8 +10,10 @@ struct Cross <: EvalMode
 	numfolds::Integer
 end
 
-struct Static <: EvalMode
+mutable struct Static <: EvalMode
 	filename::AbstractString
+	data::Matrix
+	Static(filename) = new(filename)
 end
 
 Base.show(io::IO, ::Training) = print(io, "training")

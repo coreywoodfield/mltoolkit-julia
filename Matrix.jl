@@ -5,7 +5,9 @@ const MISSING = Inf
 """
     Matrix <: AbstractMatrix{Float64}
 
-2-d matrix containing arff data.
+2-d matrix containing arff data. To read a matrix in from an ARFF file, use
+`loadarff(arff)`. To copy part of an existing matrix, use `copymatrix(...)`.
+To initialize an empty matrix with a certain size, use `Matrix(rows, columns)`
 
 You can iterate over the rows using a standard for loop:
 ```julia
@@ -70,9 +72,9 @@ function mostcommonvalue(m::Matrix, col::Integer)
 	end
 	mcv
 end
-shuffle!(m::Matrix, rng::AbstractRNG) = permute!(m, randperm(rng, rows(m)))
-function shuffle!(m::Matrix, rng::AbstractRNG, buddy::Matrix)
-	perm = randperm(rng, rows(m))
+shuffle!(m::Matrix) = permute!(m, randperm(rows(m)))
+function shuffle!(m::Matrix, buddy::Matrix)
+	perm = randperm(rows(m))
 	permute!(m, perm)
 	permute!(buddy, perm)
 end
@@ -93,14 +95,51 @@ Copies the specified portion of Matrix `m` and returns it as a new matrix.
 function copymatrix(m::Matrix, rowstart::Integer, colstart::Integer, rowcount::Integer, colcount::Integer)::Matrix
 	data = Vector{Vector{Float64}}(rowcount)
 	# Julia ranges include both end values, so if they just want one column we should do colstart:colstart
-	columns = colstart:(colstart + colcount - 1)
-	for i in 0:rowcount-1
-		data[i+1] = m[rowstart+i][columns]
+	rowoffset, columnoffset = rowstart - 1, colstart - 1
+	columns = colstart:columnoffset+colcount
+	for i in 1:rowcount
+		data[i] = copy(m.data[rowoffset+i][columns])
 	end
 	attr_name = m.attr_name[columns]
 	str_to_enum = m.str_to_enum[columns]
 	enum_to_str = m.enum_to_str[columns]
 	Matrix(data, attr_name, str_to_enum, enum_to_str, m.datasetname)
+end
+
+"""
+    add!(matrix1, matrix2, rowstart, colstart, rowcount)
+
+Adds the specified portion of `matrix2` to the end of `matrix1`. `rowstart` and
+`colstart` should be 1-indexed values.
+
+!!! warning
+
+    This differs from the java/c++ version, where `rowstart` and `colstart` are
+    0-indexed. Here, if you want to add the whole matrix `m` to `n`, you would call
+    `add!(n, m, 1, 1, rows(m))`, not `add!(m, 0, 0, rows(m))` as you would call in java/c++
+"""
+function add!(this::Matrix, that::Matrix, rowstart::Integer, colstart::Integer, rowcount::Integer)
+	columnoffset = colstart - 1
+	if columnoffset + columns(this) > columns(that)
+		error("out of range")
+	end
+	if any(i -> valuecount(this, i) != valuecount(that, columnoffset+i), 1:columns(this))
+		error("Incompatible relations")
+	end
+	append!(this.data, map(row -> copy(row[colstart:columnoffset+columns(this)]), that.data[rowstart:rowstart+rowcount]))
+	nothing
+end
+
+function Matrix(rows::Integer, columns::Integer)
+	data = Vector{Vector{Float64}}(rows)
+	for i in 1:rows
+		data[i] = zeros(columns)
+	end
+	attr_name = fill("", columns)
+	# kinda hacky, but whatever - creates a new (empty) dictionary for each column
+	str_to_enum = map(x -> Dict{AbstractString,Integer}(), 1:columns)
+	enum_to_str = map(x -> Dict{Integer,AbstractString}(), 1:columns)
+	Matrix(data, attr_name, str_to_enum, enum_to_str, "")
 end
 
 function loadarff(filename::AbstractString)::Matrix
@@ -172,28 +211,29 @@ end
 
 function normalize(m::Matrix)
 	# get a list of mins and maxes for each column
-	extr = extrema(m, 1)
+	extrema = extrema(m, 1)
+	normalize(m, extrema)
+	extr
+end
+
+"""
+    normalize(m, extrema)
+
+Normalizes the matrix `m` using the maximum and minimum values passed in as `extrema`.
+This allows for two matrices to be normalized using the same ranges.
+`normalize(m)` on the first matrix returns a list of extrema that can be used here
+to normalize the second matrix using the same ranges
+"""
+function normalize(m::Matrix, extrema::Vector{Tuple{Float64,Float64}})
 	cols = columns(m)
 	values = map(c -> valuecount(m, c), 1:cols)
 	for row in m
-		for (i, (value, count, (min, max))) in enumerate(zip(row, values, extr))
+		for (i, (value, count, (min, max))) in enumerate(zip(row, values, extrema))
 			if count == 0 && value != MISSING
 				row[i] = (value - min) / (max - min)
 			end
 		end
 	end
-	# for (int i = 0; i < cols(); i++) {
-	# 	if (valueCount(i) == 0) {
-	# 		min = columnMin(i);
-	# 		max = columnMax(i);
-	# 		for (int j = 0; j < rows(); j++) {
-	# 			double v = get(j, i);
-	# 			if (v != MISSING)
-	# 				set(j, i, (v - min) / (max - min))
-	# 			end
-	# 		}
-	# 	}
-	# }
 end
 
 import Base.show
