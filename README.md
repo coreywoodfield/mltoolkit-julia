@@ -3,7 +3,7 @@ Julia port of the BYU CS 478 machine learning toolkit
 
 ## How to extend this toolkit
 If you want to add a learner, create a new file in the project directory for the learner.
-Create the learner type and have it extend the `SupervisedLearner` type (i.e. `struct Perceptron <: SupervisedLearner ...`).
+Create the learner type and have it extend the `SupervisedLearner` type (e.g. `struct Perceptron <: SupervisedLearner ...`).
 Implement the `train(learner::YourLearner, features::Matrix, labels::Matrix)` function and the
 `predict(learner::YourLearner, features::Vector{Float64})` function for your learner. The `predict` function,
 instead of modifying an array passed in (as the java toolkit does), simply returns the prediction.
@@ -20,3 +20,7 @@ learner on a arff file in that directory in the training evaluation mode, I woul
 As far as I can tell, the toolkit works. There's a good chance there are bugs; I will fix them as I come across them.
 I also intend to gradually edit the code so that it feels more like a native Julia program, and less like a Julia program
 that I ported from Java.
+
+## Important things to note
+Julia indexing starts at 1 instead of 0. The `Matrix` class I created is 1-indexed, and most of the functions that involve
+the `Matrix` class also use 1-indexing.
