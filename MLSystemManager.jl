@@ -101,17 +101,17 @@ end
 function trainandtest(learner::SupervisedLearner, data::Matrix, evalmode::Random, verbose::Bool)
 	println("Calculating accuracy on a random hold-out set...")
 	trainpercent = evalmode.percenttest
-	if trainPercent < 0 || trainPercent > 1
+	if trainpercent < 0 || trainpercent > 1
 		error("Percentage for random evaluation must be between 0 and 1")
 	end
 	println("Percentage used for training: ", trainpercent)
 	println("Percentage used for testing: ", 1 - trainpercent)
 	shuffle!(data)
-	trainsize = trunc(Int, trainPercent * rows(data))
+	trainsize = trunc(Int, trainpercent * rows(data))
 	trainfeatures = copymatrix(data, 1, 1, trainsize, columns(data) - 1)
 	trainlabels = copymatrix(data, 1, columns(data), trainsize, 1)
-	testfeatures = copymatrix(data, trainSize + 1, 1, rows(data) - trainsize, columns(data) - 1)
-	testlabels = copymatrix(data, trainSize + 1, columns(data), rows(data) - trainsize, 1)
+	testfeatures = copymatrix(data, trainsize + 1, 1, rows(data) - trainsize, columns(data) - 1)
+	testlabels = copymatrix(data, trainsize + 1, columns(data), rows(data) - trainsize, 1)
 	elapsedtime = @elapsed train(learner, trainfeatures, trainlabels)
 	println("Time to train (in seconds): ", elapsedtime)
 	trainaccuracy = measureaccuracy(learner, trainfeatures, trainlabels)
