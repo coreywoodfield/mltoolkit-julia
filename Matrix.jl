@@ -173,11 +173,9 @@ function loadarff(filename::AbstractString)::Matrix
 			if uppercase(attribute[3]) ∉ numbertypes
 				stripped = strip(attribute[3], ['{', '}', ' '])
 				values = split(stripped, [' ', ',']; keep=false)
-				i = 0
-				for val in values
+				foreach(values, Iterators.countfrom(0)) do val, i
 					ste[val] = i
 					ets[i] = val
-					i += 1
 				end
 			end
 		elseif startswith(upper, "@DATA")
@@ -211,8 +209,8 @@ end
 
 function normalize(m::Matrix)
 	# get a list of mins and maxes for each column
-	extrema = extrema(m, 1)
-	normalize(m, extrema)
+	extr = extrema(m, 1)
+	normalize(m, extr)
 	extr
 end
 
