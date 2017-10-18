@@ -209,7 +209,7 @@ end
 
 function normalize(m::Matrix)
 	# get a list of mins and maxes for each column
-	extr = extrema(m, 1)
+	extr = vec(extrema(m, 1))
 	normalize(m, extr)
 	extr
 end
