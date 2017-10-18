@@ -84,7 +84,7 @@ function trainandtest(learner::SupervisedLearner, data::Matrix, evalmode::Static
 	labels = copymatrix(data, 1, columns(data), rows(data), 1)
 	elapsedtime = @elapsed train(learner, features, labels)
 	println("Time to train (in seconds): ", elapsedtime)
-	trainaccuracy = measureaccuracy(features, labels, null)
+	trainaccuracy = measureaccuracy(learner, features, labels)
 	println("Training set accuracy: ", trainaccuracy)
 	testfeatures = copymatrix(testdata, 1, 1, rows(testdata), columns(testdata) - 1)
 	testlabels = copymatrix(testdata, 1, columns(testdata), rows(testdata), 1)

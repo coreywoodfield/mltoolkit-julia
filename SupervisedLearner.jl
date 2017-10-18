@@ -38,10 +38,14 @@ function measureaccuracy(learner::SupervisedLearner, features::Matrix, labels::M
 	end
 end
 
+function meansquarederror(learner::SupervisedLearner, features::Matrix, labels::Matrix)
+	error("meansquarederror not implemented for $(typeof(learner))")
+end
+
 function train(learner, features::Matrix, labels::Matrix)
-	error("Train not implemented for $(typeof(learner))")
+	error("train not implemented for $(typeof(learner))")
 end
 
 function predict(learner, features::Vector{Float64})
-	error("Predict not implemented for $(typeof(learner))")
+	error("predict not implemented for $(typeof(learner))")
 end
