@@ -2,6 +2,10 @@
 
 module MLToolkit
 
+export SupervisedLearner, train, predict
+
+const Σ = sum
+
 # declare Matrix class and constructors
 include("Matrix.jl")
 # declare SupervisedLearner abstract type
@@ -10,6 +14,8 @@ include("SupervisedLearner.jl")
 include("ParseArgs.jl")
 # BaselineLearner class
 include("BaselineLearner.jl")
+
+using .BaselineModule
 
 function getlearner(model::AbstractString)::SupervisedLearner
 	if model == "baseline"

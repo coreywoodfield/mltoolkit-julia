@@ -1,3 +1,9 @@
+module BaselineModule
+
+importall MLToolkit
+
+export BaselineLearner
+
 """
 For nominal labels, this model simply returns the majority class. For
 continuous labels, it returns the mean value.
@@ -16,4 +22,6 @@ end
 
 function predict(learner::BaselineLearner, features::Vector{Float64})
 	learner.label
+end
+
 end
