@@ -20,8 +20,6 @@ function train(learner::BaselineLearner, features::Matrix, labels::Matrix)
 	learner.label = valuecount(labels, 1) == 0 ? columnmean(labels, 1) : mostcommonvalue(labels, 1)
 end
 
-function predict(learner::BaselineLearner, features::Vector{Float64})
-	learner.label
-end
+predict(learner::BaselineLearner, features::Row) = learner.label
 
 end

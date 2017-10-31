@@ -1,6 +1,7 @@
 
 const numbertypes = Set(["REAL", "CONTINUOUS", "INTEGER"])
 const MISSING = Inf
+const Row = Vector{Float64}
 
 """
     Matrix <: AbstractMatrix{Float64}
@@ -24,7 +25,7 @@ m[1,5] = 1.0
 ```
 """
 struct Matrix <: AbstractMatrix{Float64}
-	data::Vector{Vector{Float64}}
+	data::Vector{Row}
 	attr_name::Vector{AbstractString}
 	str_to_enum::Vector{Dict{AbstractString,Integer}}
 	enum_to_str::Vector{Dict{Integer,AbstractString}}
@@ -42,7 +43,7 @@ Base.length(m::Matrix) = length(m.data)
 Base.size(m::Matrix) = (rows(m), columns(m))
 Base.getindex(m::Matrix, i::Int) = m.data[i]
 Base.getindex(m::Matrix, i::Vararg{Int, 2}) = m.data[i[1]][i[2]]
-Base.setindex!(m::Matrix, v::Vector{Float64}, i::Int) = m.data[i] = v
+Base.setindex!(m::Matrix, v::Row, i::Int) = m.data[i] = v
 Base.setindex!(m::Matrix, v::Float64, i::Vararg{Int, 2}) = m.data[i[1]][i[2]] = v
 
 const rows = Base.length
@@ -104,6 +105,43 @@ function copymatrix(m::Matrix, rowstart::Integer, colstart::Integer, rowcount::I
 	str_to_enum = m.str_to_enum[columns]
 	enum_to_str = m.enum_to_str[columns]
 	Matrix(data, attr_name, str_to_enum, enum_to_str, m.datasetname)
+end
+
+"""
+    getrows(m, rows)
+
+Get the specified rows from the matrix m, as a matrix. Gets a view, and not a copy.
+That is, if the matrix returned from `getrows` is modified, the original matrix will
+also be modified. `rows` can be a range or an array of indices, or
+[any other index](https://docs.julialang.org/en/stable/manual/arrays/#man-supported-index-types-1)
+supported by standard julia indexing.
+"""
+getrows(m::Matrix, rows) = Matrix(map(i -> m[i], rows), m.attr_name, m.str_to_enum, m.enum_to_str, m.datasetname)
+
+struct Split
+	trainfeatures::Matrix
+	trainlabels::Matrix
+	validationfeatures::Matrix
+	validationlabels::Matrix
+end
+
+"""
+    split(features, labels, percenttest)
+
+Split the given matrices into a training set and a validation set, where
+`percenttest`% of the rows are put in the validation set and `1-percenttest`%
+of the rows are put into the training set.
+"""
+function splitmatrix(features::Matrix, labels::Matrix, percenttest::AbstractFloat)
+	shuffle!(features, labels)
+	numrows = rows(features)
+	trainrows = trunc(Int, (1 - percenttest) * numrows)
+	validationrows = numrows - trainrows
+	trainfeatures = copymatrix(features, 1, 1, trainrows, columns(features))
+	trainlabels = copymatrix(labels, 1, 1, trainrows, columns(labels))
+	validationfeatures = copymatrix(features, trainrows+1, 1, validationrows, columns(features))
+	validationlabels = copymatrix(labels, trainrows+1, 1, validationrows, columns(labels))
+	Split(trainfeatures, trainlabels, validationfeatures, validationlabels)
 end
 
 """
@@ -172,7 +210,8 @@ function loadarff(filename::AbstractString)::Matrix
 			# If it's one of the number types, there's no need to do anything with it
 			if uppercase(attribute[3]) ∉ numbertypes
 				stripped = strip(attribute[3], ['{', '}', ' '])
-				values = split(stripped, [' ', ',']; keep=false)
+				# Consider unknown values another value (for decision tree)
+				values = [split(stripped, [' ', ',']; keep=false); "?"]
 				foreach(values, Iterators.countfrom(0)) do val, i
 					ste[val] = i
 					ets[i] = val
@@ -198,10 +237,10 @@ function getfloatvalue(value::AbstractString, dict::Dict{AbstractString,Integer}
 	value = strip(value)
 	if length(dict) == 0
 		parse(Float64, value)
-	elseif value == "?"
-		MISSING
 	elseif haskey(dict, value)
 		dict[value]
+	elseif value == "?"
+		MISSING
 	else
 		error("Error parsing value: $value with dict: $dict")
 	end
@@ -234,9 +273,7 @@ function normalize(m::Matrix, extrema::Vector{Tuple{Float64,Float64}})
 	end
 end
 
-import Base.show
-
-function show(io::IO, m::Matrix)
+function Base.show(io::IO, m::Matrix)
 	println(io, "@RELATION ", m.datasetname)
 	for (name, values) in zip(m.attr_name, m.enum_to_str)
 		println(io, "@ATTRIBUTE ", name, " ", begin

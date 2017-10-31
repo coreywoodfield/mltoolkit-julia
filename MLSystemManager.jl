@@ -2,7 +2,7 @@
 
 module MLToolkit
 
-export SupervisedLearner, train, predict
+export SupervisedLearner, train, predict, Row
 
 const Σ = sum
 

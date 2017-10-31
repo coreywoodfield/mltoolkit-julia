@@ -38,7 +38,7 @@ function measureaccuracy(learner::SupervisedLearner, features::Matrix, labels::M
 	end
 end
 
-function meansquarederror(learner::SupervisedLearner, features::Matrix, labels::Matrix)
+function meansquarederror(learner, features::Matrix, labels::Matrix)
 	error("meansquarederror not implemented for $(typeof(learner))")
 end
 
