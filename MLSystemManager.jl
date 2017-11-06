@@ -15,6 +15,7 @@ include("ParseArgs.jl")
 # BaselineLearner class
 include("BaselineLearner.jl")
 
+# import BaselineLearner from BaselineModule
 using .BaselineModule
 
 function getlearner(model::AbstractString)::SupervisedLearner

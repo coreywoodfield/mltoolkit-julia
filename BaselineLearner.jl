@@ -1,7 +1,11 @@
 module BaselineModule
 
+# import all the exported things from MLToolkit, so we can extend SupervisedLearner
+# and use the MLToolkit.Matrix and related functions without needing to qualify them
 importall MLToolkit
 
+# export BaselineLearner so MLToolkit can add `using .BaselineModule` and
+# use the learner without qualifying it
 export BaselineLearner
 
 """

@@ -10,6 +10,12 @@ instead of modifying an array passed in (as the java toolkit does), simply retur
 Add `include("YourFile.jl")` in MLSystemManager.jl under all the rest of the includes at the top of the file,
 and add a case to the `getlearner` function for your learner.
 
+I'd recommend putting each learner in its own module so that you don't have to worry about what you name constants
+in the different files and such. This can be done by modeling your file after the BaselineLearner.jl file.
+Make sure you have `importall MLToolkit` at the top of the module, so you can extend the `train` and `predict`
+functions without needing to qualify them, and `export LearnerImplementation` so that you can just add
+`using .LearnerModule` at the top of MLSystemManager.jl to have unqualified access to the implementation.
+
 ## How to run this toolkit
 When you run the MLSystemManager.jl file from the command line (non-interactively), it will run just as the java toolkit does.
 It takes the same options as the java toolkit. If I were in the root directory of the project, and wanted to run the baseline
