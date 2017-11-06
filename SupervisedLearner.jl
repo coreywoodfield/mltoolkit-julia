@@ -1,4 +1,7 @@
 
+# exports for MLToolkit
+export SupervisedLearner, train, predict, meansquarederror, measureaccuracy
+
 abstract type SupervisedLearner end
 
 function measureaccuracy(learner::SupervisedLearner, features::Matrix, labels::Matrix, confusion::Nullable{Matrix}=Nullable{Matrix}())

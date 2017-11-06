@@ -1,4 +1,9 @@
 
+# exports for MLToolkit
+export Matrix, Row, columns, rows, attributename, attributevalue, valuecount
+export columnmean, columnmaximum, columnminimum, mostcommonvalue, shuffle!
+export getrows, Split, splitmatrix
+
 const numbertypes = Set(["REAL", "CONTINUOUS", "INTEGER"])
 const MISSING = Inf
 const Row = Vector{Float64}
