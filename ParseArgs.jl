@@ -40,40 +40,44 @@ struct ParseArgs
 	arff::AbstractString
 	learner::AbstractString
 	evaluation::EvalMode
-	function ParseArgs(args::Array)
-		verbose, normalize, arff, learner, evaluation = false, false, "", "", nothing
-		try
-			while !isempty(args)
-				option = shift!(args)
-				if option == "-V"
-					verbose = true
-				elseif option == "-N"
-					normalize = true
-				elseif option == "-A"
-					arff = shift!(args)
-				elseif option == "-L"
-					learner = shift!(args)
-				elseif option == "-E"
-					evaluation = EvalMode(args)
-				else
-					error("Invalid parameter: $option")
-				end
-			end
-			if arff != "" && learner != "" && evaluation != nothing
-				return new(verbose, normalize, arff, learner, evaluation)
+	other::Dict{Symbol,AbstractString}
+end
+
+function parseargs(args::Array)
+	verbose, normalize, arff, learner, evaluation, other = false, false, "", "", nothing, Dict()
+	try
+		while !isempty(args)
+			option = shift!(args)
+			if option == "-V"
+				verbose = true
+			elseif option == "-N"
+				normalize = true
+			elseif option == "-A"
+				arff = shift!(args)
+			elseif option == "-L"
+				learner = shift!(args)
+			elseif option == "-E"
+				evaluation = EvalMode(args)
+			elseif startswith(option, "--")
+				other[Symbol(option[3:end])] = shift!(args)
+			else
+				error("Invalid parameter: $option")
 			end
 		end
-		println("Usage:")
-		println("MLSystemManager -L [learningAlgorithm] -A [ARFF_File] -E [evaluationMethod] {[extraParamters]} [OPTIONS]\n")
-		println("OPTIONS:")
-		println("-V Print the confusion matrix and learner accuracy on individual class values")
-		println("-N Use normalized data")
-		println()
-		println("Possible evaluation methods are:")
-		println("MLSystemManager -L [learningAlgorithm] -A [ARFF_File] -E training")
-		println("MLSystemManager -L [learningAlgorithm] -A [ARFF_File] -E static [testARFF_File]")
-		println("MLSystemManager -L [learningAlgorithm] -A [ARFF_File] -E random [%_ForTraining]")
-		println("MLSystemManager -L [learningAlgorithm] -A [ARFF_File] -E cross [numOfFolds]\n")
-		exit(0)
+		if arff != "" && learner != "" && evaluation != nothing
+			return ParseArgs(verbose, normalize, arff, learner, evaluation, other)
+		end
 	end
+	println("Usage:")
+	println("MLSystemManager -L [learningAlgorithm] -A [ARFF_File] -E [evaluationMethod] {[extraParamters]} [OPTIONS]\n")
+	println("OPTIONS:")
+	println("-V Print the confusion matrix and learner accuracy on individual class values")
+	println("-N Use normalized data")
+	println()
+	println("Possible evaluation methods are:")
+	println("MLSystemManager -L [learningAlgorithm] -A [ARFF_File] -E training")
+	println("MLSystemManager -L [learningAlgorithm] -A [ARFF_File] -E static [testARFF_File]")
+	println("MLSystemManager -L [learningAlgorithm] -A [ARFF_File] -E random [%_ForTraining]")
+	println("MLSystemManager -L [learningAlgorithm] -A [ARFF_File] -E cross [numOfFolds]\n")
+	exit(0)
 end

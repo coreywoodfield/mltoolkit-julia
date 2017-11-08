@@ -60,23 +60,16 @@ valuecount(m::Matrix, col::Integer) = length(m.enum_to_str[col])
 columnmean(m::Matrix, col::Integer) = mean(m, 1)[col]
 columnminimum(m::Matrix, col::Integer) = minimum(x, 1)[col]
 columnmaximum(m::Matrix, col::Integer) = maximum(x, 1)[col]
-function mostcommonvalue(m::Matrix, col::Integer)
+mostcommonvalue(m::Matrix, col::Integer) = mostcommonvalue(m[:,col])
+function mostcommonvalue(column)
 	counts = Dict{Float64,Integer}()
-	for row in m
-		value = row[col]
+	for value in column
 		if value != MISSING
 			counts[value] = get(counts, value, 0) + 1
 		end
 	end
-	mcv = MISSING
-	maxcount = 0
-	for (val, count) in counts
-		if count > maxcount
-			maxcount = count
-			mcv = val
-		end
-	end
-	mcv
+	counts = map(reverse, counts)
+	counts[maximum(keys(counts))]
 end
 shuffle!(m::Matrix) = permute!(m, randperm(rows(m)))
 function shuffle!(m::Matrix, buddy::Matrix)
@@ -174,14 +167,11 @@ function add!(this::Matrix, that::Matrix, rowstart::Integer, colstart::Integer, 
 end
 
 function Matrix(rows::Integer, columns::Integer)
-	data = Vector{Vector{Float64}}(rows)
-	for i in 1:rows
-		data[i] = zeros(columns)
-	end
+	data = map(_ -> zeros(columns), 1:rows)
 	attr_name = fill("", columns)
 	# kinda hacky, but whatever - creates a new (empty) dictionary for each column
-	str_to_enum = map(x -> Dict{AbstractString,Integer}(), 1:columns)
-	enum_to_str = map(x -> Dict{Integer,AbstractString}(), 1:columns)
+	str_to_enum = map(_ -> Dict{AbstractString,Integer}(), 1:columns)
+	enum_to_str = map(_ -> Dict{Integer,AbstractString}(), 1:columns)
 	Matrix(data, attr_name, str_to_enum, enum_to_str, "")
 end
 
@@ -215,8 +205,7 @@ function loadarff(filename::AbstractString)::Matrix
 			# If it's one of the number types, there's no need to do anything with it
 			if uppercase(attribute[3]) ∉ numbertypes
 				stripped = strip(attribute[3], ['{', '}', ' '])
-				# Consider unknown values another value (for decision tree)
-				values = [split(stripped, [' ', ',']; keep=false); "?"]
+				values = split(stripped, [' ', ',']; keep=false)
 				foreach(values, Iterators.countfrom(0)) do val, i
 					ste[val] = i
 					ets[i] = val

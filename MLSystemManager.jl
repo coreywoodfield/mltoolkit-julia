@@ -18,17 +18,12 @@ include("BaselineLearner.jl")
 # import BaselineLearner from BaselineModule
 using .BaselineModule
 
-function getlearner(model::AbstractString)::SupervisedLearner
-	if model == "baseline"
-		BaselineLearner()
-	# elseif model == "perceptron"
-	# 	Perceptron()
-	# elseif model == "neuralnet"
-	# 	NeuralNet()
-	# elseif model == "decisiontree"
-	# 	DecisionTree()
-	# elseif model == "knn"
-	# 	InstanceBasedLearner()
+# add more entries to this dictionary once you've implemented more learners
+learners = Dict("baseline" => BaselineLearner)
+
+function getlearner(model::AbstractString, args::Dict{Symbol,AbstractString})::SupervisedLearner
+	if haskey(learners, model)
+		learners[model](;args...)
 	else
 		error("Unrecognized model: $model")
 	end
@@ -37,8 +32,8 @@ end
 function run()
 	srand() # No seed for non-deterministic results (this seeds the global random number generator)
 	# srand(1234) # Use a seed for deterministic results (makes debugging easier)
-	args = ParseArgs(ARGS)
-	learner = getlearner(args.learner)
+	args = parseargs(ARGS)
+	learner = getlearner(args.learner, args.other)
 	evalmode = args.evaluation
 
 	matrix = loadarff(args.arff)

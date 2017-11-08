@@ -17,7 +17,7 @@ function measureaccuracy(learner::SupervisedLearner, features::Matrix, labels::M
 	if labelvalues == 0
 		# The label is continuous, so measure root mean squared error
 		sse = 0.
-		for (feature, target) in zip(features, labels)
+		foreach(features, labels) do feature, target
 			prediction = predict(learner, feature)
 			delta = target[1] - prediction
 			sse += delta^2
@@ -25,7 +25,7 @@ function measureaccuracy(learner::SupervisedLearner, features::Matrix, labels::M
 		√(sse / rows(features))
 	else
 		correctcount = 0
-		for (feature, target) in zip(features, labels)
+		foreach(features, labels) do feature, target
 			if target[1] >= labelvalues
 				error("The label is out of range")
 			end
@@ -41,14 +41,14 @@ function measureaccuracy(learner::SupervisedLearner, features::Matrix, labels::M
 	end
 end
 
-function meansquarederror(learner, features::Matrix, labels::Matrix)
+function meansquarederror(learner::SupervisedLearner, features::Matrix, labels::Matrix)
 	error("meansquarederror not implemented for $(typeof(learner))")
 end
 
-function train(learner, features::Matrix, labels::Matrix)
+function train(learner::SupervisedLearner, features::Matrix, labels::Matrix)
 	error("train not implemented for $(typeof(learner))")
 end
 
-function predict(learner, features::Vector{Float64})
+function predict(learner::SupervisedLearner, features::Vector{Float64})
 	error("predict not implemented for $(typeof(learner))")
 end
