@@ -57,9 +57,9 @@ attributename(m::Matrix, col::Integer) = m.attr_name[col]
 setattributename(m::Matrix, col::Integer, name::AbstractString) = m.attr_name[col] = name
 attributevalue(m::Matrix, col::Integer, value::Integer) = m.enum_to_str[col][value]
 valuecount(m::Matrix, col::Integer) = length(m.enum_to_str[col])
-columnmean(m::Matrix, col::Integer) = mean(m, 1)[col]
-columnminimum(m::Matrix, col::Integer) = minimum(x, 1)[col]
-columnmaximum(m::Matrix, col::Integer) = maximum(x, 1)[col]
+columnmean(m::Matrix, col::Integer) = mean(m[:,col])
+columnminimum(m::Matrix, col::Integer) = minimum(m[:,col])
+columnmaximum(m::Matrix, col::Integer) = maximum(m[:,col])
 mostcommonvalue(m::Matrix, col::Integer) = mostcommonvalue(m[:,col])
 function mostcommonvalue(column)
 	counts = Dict{Float64,Integer}()
@@ -79,42 +79,38 @@ function shuffle!(m::Matrix, buddy::Matrix)
 end
 
 """
-    copymatrix(m, rowstart, colstart, rowcount, colcount)
+    copymatrix(m, rows, columns)
 
-Copies the specified portion of Matrix `m` and returns it as a new matrix.
-`rowstart` and `colstart` should be 1-indexed values
+Get the specified portion of Matrix `m` and returns it as a new matrix.
+`rows` and `columns` should be a range or an array of indices, or
+[any other index](https://docs.julialang.org/en/stable/manual/arrays/#man-supported-index-types-1)
+supported by standard julia indexing.
 
-!!! warning
+This gets a view of the original matrix, and not a copy. If you modify this
+matrix, the original matrix will also be modified.
 
-    This differs from the java/c++ version, where `rowstart` and `colstart` are
-    0-indexed. Here, if you want to copy the whole matrix `m`, you would call
-    `copymatrix(m, 1, 1, rows(m), columns(m))`, not `copymatrix(m, 0, 0, rows(m), columns(m))`
-    as you would call in java/c++
+!!! note
+
+    The `Matrix` class is 1-indexed. Thus, the values for rows and columns should
+    be between 1 and the number of rows or columns, inclusively.
 """
-function copymatrix(m::Matrix, rowstart::Integer, colstart::Integer, rowcount::Integer, colcount::Integer)::Matrix
-	data = Vector{Vector{Float64}}(rowcount)
-	# Julia ranges include both end values, so if they just want one column we should do colstart:colstart
-	rowoffset, columnoffset = rowstart - 1, colstart - 1
-	columns = colstart:columnoffset+colcount
-	for i in 1:rowcount
-		data[i] = copy(m.data[rowoffset+i][columns])
-	end
+function copymatrix(m::Matrix, rows, columns)
+	data = map(i->m.data[i][columns], rows)
 	attr_name = m.attr_name[columns]
 	str_to_enum = m.str_to_enum[columns]
 	enum_to_str = m.enum_to_str[columns]
 	Matrix(data, attr_name, str_to_enum, enum_to_str, m.datasetname)
 end
+copymatrix(m::Matrix, rows, columns::Int) = copymatrix(m, rows, range(columns, 1))
 
 """
     getrows(m, rows)
 
-Get the specified rows from the matrix m, as a matrix. Gets a view, and not a copy.
-That is, if the matrix returned from `getrows` is modified, the original matrix will
-also be modified. `rows` can be a range or an array of indices, or
+Get the specified rows from the matrix m, as a matrix. `rows` can be a range or an array of indices, or
 [any other index](https://docs.julialang.org/en/stable/manual/arrays/#man-supported-index-types-1)
 supported by standard julia indexing.
 """
-getrows(m::Matrix, rows) = Matrix(map(i -> m[i], rows), m.attr_name, m.str_to_enum, m.enum_to_str, m.datasetname)
+getrows(m::Matrix, rows) = copymatrix(m, rows, 1:columns(m))
 
 struct Split
 	trainfeatures::Matrix
@@ -134,36 +130,11 @@ function splitmatrix(features::Matrix, labels::Matrix, percenttest::AbstractFloa
 	shuffle!(features, labels)
 	numrows = rows(features)
 	trainrows = trunc(Int, (1 - percenttest) * numrows)
-	validationrows = numrows - trainrows
-	trainfeatures = copymatrix(features, 1, 1, trainrows, columns(features))
-	trainlabels = copymatrix(labels, 1, 1, trainrows, columns(labels))
-	validationfeatures = copymatrix(features, trainrows+1, 1, validationrows, columns(features))
-	validationlabels = copymatrix(labels, trainrows+1, 1, validationrows, columns(labels))
+	trainfeatures = getrows(features, 1:trainrows)
+	trainlabels = getrows(labels, 1:trainrows)
+	validationfeatures = getrows(features, trainrows+1:numrows)
+	validationlabels = getrows(labels, trainrows+1:numrows)
 	Split(trainfeatures, trainlabels, validationfeatures, validationlabels)
-end
-
-"""
-    add!(matrix1, matrix2, rowstart, colstart, rowcount)
-
-Adds the specified portion of `matrix2` to the end of `matrix1`. `rowstart` and
-`colstart` should be 1-indexed values.
-
-!!! warning
-
-    This differs from the java/c++ version, where `rowstart` and `colstart` are
-    0-indexed. Here, if you want to add the whole matrix `m` to `n`, you would call
-    `add!(n, m, 1, 1, rows(m))`, not `add!(m, 0, 0, rows(m))` as you would call in java/c++
-"""
-function add!(this::Matrix, that::Matrix, rowstart::Integer, colstart::Integer, rowcount::Integer)
-	columnoffset = colstart - 1
-	if columnoffset + columns(this) > columns(that)
-		error("out of range")
-	end
-	if any(i -> valuecount(this, i) != valuecount(that, columnoffset+i), 1:columns(this))
-		error("Incompatible relations")
-	end
-	append!(this.data, map(row -> copy(row[colstart:columnoffset+columns(this)]), that.data[rowstart:rowstart+rowcount]))
-	nothing
 end
 
 function Matrix(rows::Integer, columns::Integer)
@@ -215,7 +186,7 @@ function loadarff(filename::AbstractString)::Matrix
 			break
 		end
 	end
-	data = Vector{Vector{Float64}}()
+	data = Vector{Row}()
 	while !eof(io)
 		line = readline(io)
 		(length(line) == 0 || line[1] == '%') && continue
@@ -248,12 +219,16 @@ function normalize(m::Matrix)
 end
 
 """
-    normalize(m, extrema)
+    normalize(m[, extrema])
 
-Normalizes the matrix `m` using the maximum and minimum values passed in as `extrema`.
+Normalizes the matrix `m` so that all columns have values between 0 and 1.
+
+If `extrema` is included, the matrix is normalized as though the maximum and
+minimum value of each column were the values included in extrema.
 This allows for two matrices to be normalized using the same ranges.
-`normalize(m)` on the first matrix returns a list of extrema that can be used here
-to normalize the second matrix using the same ranges
+
+If `extrema` is not included, this method returns a list of extrema that can
+then be used to normalize another matrix.
 """
 function normalize(m::Matrix, extrema::Vector{Tuple{Float64,Float64}})
 	cols = columns(m)
@@ -269,13 +244,13 @@ end
 
 function Base.show(io::IO, m::Matrix)
 	println(io, "@RELATION ", m.datasetname)
-	for (name, values) in zip(m.attr_name, m.enum_to_str)
+	for (name, enum_to_str) in zip(m.attr_name, m.enum_to_str)
 		println(io, "@ATTRIBUTE ", name, " ", begin
-			valcount = length(values)
+			valcount = length(enum_to_str)
 			if valcount == 0
 				"CONTINUOUS"
 			else
-				"{", join(map(i -> values[i], 0:valcount-1), ", "), "}"
+				"{", join(values(enum_to_str), ", "), "}"
 			end
 		end...)
 	end
