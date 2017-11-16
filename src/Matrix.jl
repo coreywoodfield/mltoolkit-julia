@@ -250,12 +250,15 @@ end
 
 function getfloatvalue(value::AbstractString, dict::Dict{AbstractString,Integer})::Float64
 	value = strip(value)
-	if length(dict) == 0
-		parse(Float64, value)
-	elseif haskey(dict, value)
+	# the ordering of these if statements is very intentional
+	# if "?" is a key in the dictionary, then use the value it maps to there
+	# if it's not, it's set to MISSING whether it's a nominal or a continuous feature
+	if haskey(dict, value)
 		dict[value]
 	elseif value == "?"
 		MISSING
+	elseif length(dict) == 0
+		parse(Float64, value)
 	else
 		error("Error parsing value: $value with dict: $dict")
 	end
