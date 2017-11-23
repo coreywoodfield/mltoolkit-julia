@@ -25,8 +25,7 @@ function measureaccuracy(learner::SupervisedLearner, features::Matrix, labels::M
 		error("Expected at least one row")
 	end
 
-	labelvalues = valuecount(labels, 1)
-	if labelvalues == 0
+	if iscontinuous(labels, 1)
 		# The label is continuous, so measure root mean squared error
 		sse = 0.
 		foreach(features, labels) do feature, target

@@ -25,7 +25,7 @@ mutable struct BaselineLearner <: SupervisedLearner
 end
 
 function train(learner::BaselineLearner, ::Matrix, labels::Matrix)
-	learner.label = valuecount(labels, 1) == 0 ? columnmean(labels, 1) : mostcommonvalue(labels, 1)
+	learner.label = iscontinuous(labels, 1) ? columnmean(labels, 1) : mostcommonvalue(labels, 1)
 end
 
 predict(learner::BaselineLearner, ::Row) = learner.label

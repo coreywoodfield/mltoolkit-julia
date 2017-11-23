@@ -2,7 +2,7 @@
 # exports for MLToolkit
 export Matrix, Row, columns, rows, attributename, attributevalue, valuecount
 export columnmean, columnmaximum, columnminimum, mostcommonvalue, shuffle!
-export getrows, Split, splitmatrix
+export getrows, Split, splitmatrix, MISSING
 
 const MISSING = Inf
 const Row = Vector{Float64}
@@ -89,9 +89,14 @@ function mostcommonvalue(column)
 			counts[value] = get(counts, value, 0) + 1
 		end
 	end
-	counts = map(reverse, counts)
-	counts[maximum(keys(counts))]
+	select!(collect(counts), by=x->x[2], rev=true)[1]
 end
+"""
+    iscontinuous(matrix, column)
+
+Return true if the specified column in the given matrix is continuous, false if nominal
+"""
+iscontinuous(m::Matrix, col::Int) = isempty(m.enum_to_str[col])
 
 """
     shuffle!(matrix[, buddy])
@@ -209,7 +214,7 @@ function loadarff(filename::AbstractString)::Matrix
 	# read attributes - break when you get to the data
 	while true
 		line = readline(io)
-		(length(line) == 0 || line[1] == '%') && continue
+		(isempty(line) || line[1] == '%') && continue
 		upper = uppercase(line)
 		if startswith(upper, "@RELATION")
 			# Everything after Relation is the datasetname
@@ -240,7 +245,7 @@ function loadarff(filename::AbstractString)::Matrix
 	data = Vector{Row}()
 	while !eof(io)
 		line = readline(io)
-		(length(line) == 0 || line[1] == '%') && continue
+		(isempty(line) || line[1] == '%') && continue
 		line = map(strip, split(line, ','))
 		row = map(getfloatvalue, line, str_to_enum)
 		push!(data, row)
@@ -258,7 +263,7 @@ function getfloatvalue(value::AbstractString, dict::Dict{AbstractString,Integer}
 		dict[value]
 	elseif value == "?"
 		MISSING
-	elseif length(dict) == 0
+	elseif isempty(dict)
 		parse(Float64, value)
 	else
 		error("Error parsing value: $value with dict: $dict")
@@ -293,8 +298,7 @@ function Base.show(io::IO, m::Matrix)
 	println(io, "@RELATION ", m.datasetname)
 	for (name, enum_to_str) in zip(m.attr_name, m.enum_to_str)
 		println(io, "@ATTRIBUTE ", name, " ", begin
-			valcount = length(enum_to_str)
-			if valcount == 0
+			if isempty(enum_to_str)
 				"CONTINUOUS"
 			else
 				"{", join(values(enum_to_str), ", "), "}"
@@ -304,7 +308,7 @@ function Base.show(io::IO, m::Matrix)
 	println(io, "@DATA")
 	for row in m.rows
 		mapped = map(row, m.enum_to_str) do val, map
-			length(map) == 0 ? val : map[val]
+			val == MISSING ? "?" : isempty(map) ? val : map[val]
 		end
 		join(io, mapped, ", ")
 		println()
