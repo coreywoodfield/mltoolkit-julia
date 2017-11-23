@@ -55,6 +55,10 @@ function run()
 	println("Evaluation method: ", evalmode)
 	println()
 
+	# precompile so that the compilation time doesn't skew the first runtime, if we're timing anything
+	precompile(train, (typeof(learner), Matrix, Matrix))
+	precompile(measureaccuracy, (typeof(learner), Matrix, Matrix))
+	precompile(measureaccuracy, (typeof(learner), Matrix, Matrix, Nullable{Matrix}))
 	trainandtest(learner, matrix, evalmode, args.verbose)
 	println()
 end

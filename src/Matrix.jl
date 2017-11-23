@@ -73,14 +73,15 @@ If the column is a nominal feature, get the number of different valid values.
 If the column is not nominal, 0.
 """
 valuecount(m::Matrix, col::Integer) = length(m.enum_to_str[col])
+applytocolumn(f::Function, m::Matrix, col::Integer) = f(filter(x -> x != MISSING, m[:, col]))
 "    columnmean(matrix, column)"
-columnmean(m::Matrix, col::Integer) = mean(m[:,col])
+columnmean(m::Matrix, col::Integer) = applytocolumn(mean, m, col)
 "    columnminimum(matrix, column)"
-columnminimum(m::Matrix, col::Integer) = minimum(m[:,col])
+columnminimum(m::Matrix, col::Integer) = applytocolumn(minimum, m, col)
 "    columnmaximum(matrix, column)"
-columnmaximum(m::Matrix, col::Integer) = maximum(m[:,col])
+columnmaximum(m::Matrix, col::Integer) = applytocolumn(maximum, m, col)
 "    mostcommonvalue(matrix, column)"
-mostcommonvalue(m::Matrix, col::Integer) = mostcommonvalue(m[:,col])
+mostcommonvalue(m::Matrix, col::Integer) = applytocolumn(mostcommonvalue, m, col)
 function mostcommonvalue(column)
 	counts = Dict{Float64,Integer}()
 	for value in column
