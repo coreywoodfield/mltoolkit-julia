@@ -28,8 +28,8 @@ function getlearner(model::AbstractString, args::Dict{Symbol,AbstractString})::S
 end
 
 function run()
-	srand() # No seed for non-deterministic results (this seeds the global random number generator)
-	# srand(1234) # Use a seed for deterministic results (makes debugging easier)
+	# If you want to use a specific seed for the RNG, use `--seed <seed>` on the command line
+	srand() # this seeds the global RNG. If you pass in seed it gets reseeded in parseargs
 	args = parseargs(ARGS)
 	learner = getlearner(args.learner, args.other)
 	evalmode = args.evaluation

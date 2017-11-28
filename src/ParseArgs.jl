@@ -58,6 +58,8 @@ function parseargs(args::Array)
 				learner = shift!(args)
 			elseif option == "-E"
 				evaluation = EvalMode(args)
+			elseif option == "--seed"
+				srand(parse(shift!(args)))
 			elseif startswith(option, "--")
 				other[Symbol(option[3:end])] = shift!(args)
 			else
@@ -79,5 +81,5 @@ function parseargs(args::Array)
 	println("MLSystemManager -L [learningAlgorithm] -A [ARFF_File] -E static [testARFF_File]")
 	println("MLSystemManager -L [learningAlgorithm] -A [ARFF_File] -E random [%_ForTraining]")
 	println("MLSystemManager -L [learningAlgorithm] -A [ARFF_File] -E cross [numOfFolds]\n")
-	exit(0)
+	exit(1)
 end
