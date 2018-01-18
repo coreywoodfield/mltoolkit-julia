@@ -2,7 +2,7 @@
 # exports for MLToolkit
 export Matrix, Row, columns, rows, attributename, attributevalue, valuecount
 export columnmean, columnmaximum, columnminimum, mostcommonvalue, shuffle!
-export getrows, Split, splitmatrix, MISSING
+export getrows, Split, splitmatrix, MISSING, loadarff
 
 const MISSING = Inf
 const Row = Vector{Float64}
@@ -195,7 +195,7 @@ function Matrix(rows::Integer, columns::Integer)
 	Matrix(data, attr_name, str_to_enum, enum_to_str, "")
 end
 
-const numbertypes = Set(["REAL", "CONTINUOUS", "INTEGER"])
+const numbertypes = Set(["REAL", "CONTINUOUS", "INTEGER", "NUMERIC"])
 
 """
     loadarff(filename)
@@ -311,6 +311,6 @@ function Base.show(io::IO, m::Matrix)
 			val == MISSING ? "?" : isempty(map) ? val : map[val]
 		end
 		join(io, mapped, ", ")
-		println()
+		println(io)
 	end
 end
