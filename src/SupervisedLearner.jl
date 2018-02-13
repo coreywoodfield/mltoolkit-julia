@@ -36,6 +36,7 @@ function measureaccuracy(learner::SupervisedLearner, features::Matrix, labels::M
 		√(sse / rows(features))
 	else
 		correctcount = 0
+		labelvalues = valuecount(labels, 1)
 		foreach(features, labels[:,1]) do feature, target
 			if target >= labelvalues
 				error("The label is out of range")

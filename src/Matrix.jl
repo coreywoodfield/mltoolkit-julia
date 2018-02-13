@@ -73,7 +73,14 @@ If the column is a nominal feature, get the number of different valid values.
 If the column is not nominal, 0.
 """
 valuecount(m::Matrix, col::Integer) = length(m.enum_to_str[col])
-applytocolumn(f::Function, m::Matrix, col::Integer) = f(filter(x -> x != MISSING, m[:, col]))
+function applytocolumn(f::Function, m::Matrix, col::Integer)
+	column = filter(x -> x != MISSING, m[:, col])
+	if isempty(column)
+		MISSING
+	else
+		f(column)
+	end
+end
 "    columnmean(matrix, column)"
 columnmean(m::Matrix, col::Integer) = applytocolumn(mean, m, col)
 "    columnminimum(matrix, column)"
@@ -85,11 +92,9 @@ mostcommonvalue(m::Matrix, col::Integer) = applytocolumn(mostcommonvalue, m, col
 function mostcommonvalue(column)
 	counts = Dict{Float64,Integer}()
 	for value in column
-		if value != MISSING
-			counts[value] = get(counts, value, 0) + 1
-		end
+		counts[value] = get(counts, value, 0) + 1
 	end
-	select!(collect(counts), by=x->x[2], rev=true)[1]
+	select!(collect(counts), 1, by=x->x[2], rev=true)[1]
 end
 """
     iscontinuous(matrix, column)
