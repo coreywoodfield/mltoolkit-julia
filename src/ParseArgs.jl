@@ -2,7 +2,7 @@ abstract type EvalMode end
 
 struct Training <: EvalMode end
 
-struct Random <: EvalMode
+struct Rando <: EvalMode
 	percenttest::AbstractFloat
 end
 
@@ -17,25 +17,24 @@ mutable struct Static <: EvalMode
 end
 
 Base.show(io::IO, ::Training) = print(io, "training")
-Base.show(io::IO, ::Random) = print(io, "random")
+Base.show(io::IO, ::Rando) = print(io, "random")
 Base.show(io::IO, ::Cross) = print(io, "cross")
 Base.show(io::IO, ::Static) = print(io, "static")
 
 function EvalMode(args::Array)
-	mode = shift!(args)
+	mode = popfirst!(args)
 	if mode == "training"
 		Training()
 	elseif mode == "random"
-		Random(parse(Float64, shift!(args)))
+		Rando(parse(Float64, popfirst!(args)))
 	elseif mode == "cross"
-		Cross(parse(Int, shift!(args)))
+		Cross(parse(Int, popfirst!(args)))
 	elseif mode == "static"
-		Static(shift!(args))
+		Static(popfirst!(args))
 	end
 end
 
 struct ParseArgs
-	verbose::Bool
 	normalize::Bool
 	arff::AbstractString
 	learner::AbstractString
@@ -44,42 +43,47 @@ struct ParseArgs
 end
 
 function parseargs(args::Array)
-	verbose, normalize, arff, learner, evaluation, other = false, false, "", "", nothing, Dict()
+	normalize = false
+	arff = ""
+	learner = ""
+	evaluation = nothing
+	other = Dict()
 	try
 		while !isempty(args)
-			option = shift!(args)
+			option = popfirst!(args)
 			if option == "-V"
-				verbose = true
+				ENV["JULIA_DEBUG"] = "MLToolkit"
 			elseif option == "-N"
 				normalize = true
 			elseif option == "-A"
-				arff = shift!(args)
+				arff = popfirst!(args)
 			elseif option == "-L"
-				learner = shift!(args)
+				learner = popfirst!(args)
 			elseif option == "-E"
 				evaluation = EvalMode(args)
 			elseif option == "--seed"
-				srand(parse(shift!(args)))
+				Random.seed!(parse(popfirst!(args)))
 			elseif startswith(option, "--")
-				other[Symbol(option[3:end])] = shift!(args)
+				other[Symbol(option[3:end])] = popfirst!(args)
 			else
 				error("Invalid parameter: $option")
 			end
 		end
 		if arff != "" && learner != "" && evaluation != nothing
-			return ParseArgs(verbose, normalize, arff, learner, evaluation, other)
+			return ParseArgs(normalize, arff, learner, evaluation, other)
 		end
+	catch
 	end
-	println("Usage:")
-	println("MLSystemManager -L [learningAlgorithm] -A [ARFF_File] -E [evaluationMethod] {[extraParamters]} [OPTIONS]\n")
-	println("OPTIONS:")
-	println("-V Print the confusion matrix and learner accuracy on individual class values")
-	println("-N Use normalized data")
-	println()
-	println("Possible evaluation methods are:")
-	println("MLSystemManager -L [learningAlgorithm] -A [ARFF_File] -E training")
-	println("MLSystemManager -L [learningAlgorithm] -A [ARFF_File] -E static [testARFF_File]")
-	println("MLSystemManager -L [learningAlgorithm] -A [ARFF_File] -E random [%_ForTraining]")
-	println("MLSystemManager -L [learningAlgorithm] -A [ARFF_File] -E cross [numOfFolds]\n")
+	@error join(["Usage:",
+	"MLSystemManager -L learningAlgorithm -A ARFF_File -E evaluationMethod [extraParameters] [OPTIONS]",
+	"OPTIONS:",
+	"-V Print the confusion matrix and learner accuracy on individual class values",
+	"-N Use normalized data",
+	"",
+	"Possible evaluation methods are:",
+	"-E training",
+	"-E static testARFF_File",
+	"-E random training_percentage",
+	"-E cross numOfFolds"], "\n")
 	exit(1)
 end

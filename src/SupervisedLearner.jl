@@ -1,7 +1,4 @@
 
-# exports for MLToolkit
-export SupervisedLearner, train, predict, meansquarederror, measureaccuracy
-
 abstract type SupervisedLearner end
 
 """
@@ -16,7 +13,7 @@ it calculates the root mean squared error.
 If a confusion matrix is included, and the problem is a classification problem,
 the confusion matrix will be updated to show common misclassifications.
 """
-function measureaccuracy(learner::SupervisedLearner, features::Matrix, labels::Matrix, confusion::Nullable{Matrix}=Nullable{Matrix}())
+function measureaccuracy(learner::SupervisedLearner, features::Matrix, labels::Matrix, confusion::Union{Matrix,Nothing}=nothing)
 	if rows(features) != rows(labels)
 		error("Expected the features and labels to have the same number of rows")
 	elseif columns(labels) != 1
@@ -42,8 +39,8 @@ function measureaccuracy(learner::SupervisedLearner, features::Matrix, labels::M
 				error("The label is out of range")
 			end
 			prediction = Int(predict(learner, feature))
-			if !isnull(confusion)
-				get(confusion)[Int(target) + 1, prediction + 1] += 1
+			if confusion != nothing
+				confusion[Int(target) + 1, prediction + 1] += 1
 			end
 			correctcount += prediction == target
 		end

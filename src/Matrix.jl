@@ -1,11 +1,5 @@
 
-# exports for MLToolkit
-export Matrix, Row, columns, rows, attributename, attributevalue, valuecount
-export columnmean, columnmaximum, columnminimum, mostcommonvalue, shuffle!
-export getrows, Split, splitmatrix, MISSING, loadarff
-
-const MISSING = Inf
-const Row = Vector{Float64}
+const Row = Vector{Union{Float64,Missing}}
 
 """
     Matrix <: AbstractMatrix{Float64}
@@ -30,7 +24,7 @@ element5 = matrix[1,5]
 matrix[1,5] = 1.0
 ```
 """
-struct Matrix <: AbstractMatrix{Float64}
+struct Matrix <: AbstractMatrix{Union{Float64,Missing}}
 	rows::Vector{Row}
 	attr_name::Vector{AbstractString}
 	str_to_enum::Vector{Dict{AbstractString,Integer}}
@@ -41,16 +35,17 @@ end
 # These functions allow the Matrix to act like a standard julia collection
 # iterate over rows using `for row in m ... end`
 # get a specific row using `m[1]` or a specific value using `m[1,5]`
-Base.start(m::Matrix) = start(m.rows)
-Base.next(m::Matrix, state) = next(m.rows, state)
-Base.done(m::Matrix, state) = done(m.rows, state)
-# Base.eltype(::Type{Matrix}) = Vector{Float64}
+Base.iterate(m::Matrix) = iterate(m.rows)
+Base.iterate(m::Matrix, state) = iterate(m.rows, state)
+Base.HasLength(::Type{Matrix}) = Base.HasShape{2}()
 Base.length(m::Matrix) = length(m.rows)
 Base.size(m::Matrix) = (rows(m), columns(m))
+Base.firstindex(::Matrix) = 1
+Base.lastindex(m::Matrix) = lastindex(m.rows)
 Base.getindex(m::Matrix, i::Int) = m.rows[i]
-Base.getindex(m::Matrix, i::Vararg{Int, 2}) = m.rows[i[1]][i[2]]
+Base.getindex(m::Matrix, i::Int, j::Int) = m.rows[i][j]
 Base.setindex!(m::Matrix, v::Row, i::Int) = m.rows[i] = v
-Base.setindex!(m::Matrix, v::Float64, i::Vararg{Int, 2}) = m.rows[i[1]][i[2]] = v
+Base.setindex!(m::Matrix, v::Float64, i::Int, j::Int) = m.rows[i][j] = v
 
 "    rows(matrix)"
 const rows = Base.length
@@ -74,9 +69,9 @@ If the column is not nominal, 0.
 """
 valuecount(m::Matrix, col::Integer) = length(m.enum_to_str[col])
 function applytocolumn(f::Function, m::Matrix, col::Integer)
-	column = filter(x -> x != MISSING, m[:, col])
+	column = collect(skipmissing(m[:, col]))
 	if isempty(column)
-		MISSING
+		missing
 	else
 		f(column)
 	end
@@ -94,7 +89,7 @@ function mostcommonvalue(column)
 	for value in column
 		counts[value] = get(counts, value, 0) + 1
 	end
-	select!(collect(counts), 1, by=x->x[2], rev=true)[1]
+	partialsort!(collect(counts), 1, by=x->x[2], rev=true)[1]
 end
 """
     iscontinuous(matrix, column)
@@ -140,9 +135,9 @@ function copymatrix(m::Matrix, rows, columns)
 	enum_to_str = m.enum_to_str[columns]
 	Matrix(data, attr_name, str_to_enum, enum_to_str, m.datasetname)
 end
-copymatrix(m::Matrix, rows::Integer, columns::Integer) = copymatrix(m, range(rows, 1), range(columns, 1))
-copymatrix(m::Matrix, rows, columns::Integer) = copymatrix(m, rows, range(columns, 1))
-copymatrix(m::Matrix, rows::Integer, columns) = copymatrix(m, range(rows, 1), columns)
+copymatrix(m::Matrix, rows::Integer, columns::Integer) = copymatrix(m, rows:rows, columns:columns)
+copymatrix(m::Matrix, rows, columns::Integer) = copymatrix(m, rows, columns:columns)
+copymatrix(m::Matrix, rows::Integer, columns) = copymatrix(m, rows:rows, columns)
 
 """
     getrows(matrix, rows)
@@ -210,7 +205,7 @@ Read an arff file and return a `Matrix`
 function loadarff(filename::AbstractString)::Matrix
 	io = open(filename)
 	# skip empty lines and comments at the beginning
-	skipchars(io, isspace; linecomment='%')
+	skipchars(isspace, io; linecomment='%')
 	# initialize variables
 	attr_name = Vector{AbstractString}()
 	str_to_enum = Vector{Dict{AbstractString,Integer}}()
@@ -223,12 +218,12 @@ function loadarff(filename::AbstractString)::Matrix
 		upper = uppercase(line)
 		if startswith(upper, "@RELATION")
 			# Everything after Relation is the datasetname
-			datasetname = split(line, ' '; limit=2)[2]
+			datasetname = split(line; limit=2)[2]
 		elseif startswith(upper, "@ATTRIBUTE")
 			# Attribute should have three distinct parts - @Attribute, name, and type
 			# e.g. "@attribute	'handicapped-infants'	{ 'n', 'y'}"
 			# or "@ATTRIBUTE	sepallength	Continuous"
-			attribute = split(line, r"\s+"; limit=3, keep=false)
+			attribute = split(line, r"\s+"; limit=3, keepempty=false)
 			ste = Dict{AbstractString,Integer}()
 			ets = Dict{Integer,AbstractString}()
 			push!(attr_name, attribute[2])
@@ -237,7 +232,7 @@ function loadarff(filename::AbstractString)::Matrix
 			# If it's one of the number types, there's no need to do anything with it
 			if uppercase(attribute[3]) ∉ numbertypes
 				stripped = strip(attribute[3], ['{', '}', ' '])
-				values = split(stripped, [' ', ',']; keep=false)
+				values = split(stripped, [' ', ',']; keepempty=false)
 				foreach(values, Iterators.countfrom(0)) do val, i
 					ste[val] = i
 					ets[i] = val
@@ -248,31 +243,34 @@ function loadarff(filename::AbstractString)::Matrix
 		end
 	end
 	data = Vector{Row}()
+	mappers = map(dict -> getfloatvalue(dict) ∘ strip, str_to_enum)
 	while !eof(io)
 		line = readline(io)
 		(isempty(line) || line[1] == '%') && continue
-		line = map(strip, split(line, ','))
-		row = map(getfloatvalue, line, str_to_enum)
+		row = map((f,x) -> f(x), mappers, split(line, ','))
 		push!(data, row)
 	end
 	close(io)
 	Matrix(data, attr_name, str_to_enum, enum_to_str, datasetname)
 end
 
-function getfloatvalue(value::AbstractString, dict::Dict{AbstractString,Integer})::Float64
-	value = strip(value)
-	# the ordering of these if statements is very intentional
-	# if "?" is a key in the dictionary, then use the value it maps to there
-	# if it's not, it's set to MISSING whether it's a nominal or a continuous feature
-	if haskey(dict, value)
-		dict[value]
-	elseif value == "?"
-		MISSING
-	elseif isempty(dict)
-		parse(Float64, value)
-	else
-		error("Error parsing value: $value with dict: $dict")
+function getfloatvalue(dict::Dict{AbstractString,Integer})
+	function mapvalue(value::AbstractString)
+		value = strip(value)
+		# the ordering of these if statements is very intentional
+		# if "?" is a key in the dictionary, then use the value it maps to there
+		# if it's not, it's set to missing whether it's a nominal or a continuous feature
+		if haskey(dict, value)
+			dict[value]
+		elseif value == "?"
+			missing
+		elseif isempty(dict)
+			parse(Float64, value)
+		else
+			error("Error parsing value $value with dict $dict")
+		end
 	end
+	mapvalue
 end
 
 """
@@ -289,14 +287,18 @@ This method returns a list of extrema that can then be used to normalize another
 """
 normalize(m::Matrix) = normalize(m, vec(extrema(m, 1)))
 function normalize(m::Matrix, extrema::Vector{Tuple{Float64,Float64}})
-	values = map(c -> valuecount(m, c), 1:columns(m))
-	map!(row->normalizevalue.(row, values, extrema), m.rows, m.rows)
+	colinds = map(c -> valuecount(m, c) == 0, 1:columns(m)) .== 0
+	for row in m.rows
+		map!(row, row, extrema, colinds) do val, ext, real
+			real ? normalizevalue(val, ext) : val
+		end
+	end
 	extrema
 end
 
-function normalizevalue(value, count, extrema)
+function normalizevalue(value, extrema)
 	min, max = extrema
-	count == 0 && value != MISSING ? (value-min)/(max-min) : value
+	(value-min)/(max-min)
 end
 
 function Base.show(io::IO, m::Matrix)
@@ -313,7 +315,7 @@ function Base.show(io::IO, m::Matrix)
 	println(io, "@DATA")
 	for row in m.rows
 		mapped = map(row, m.enum_to_str) do val, map
-			val == MISSING ? "?" : isempty(map) ? val : map[val]
+			ismissing(val) ? "?" : isempty(map) ? val : map[val]
 		end
 		join(io, mapped, ", ")
 		println(io)
